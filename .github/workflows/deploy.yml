@@ -39,8 +39,14 @@ jobs:
       # rather than shipping.
       - run: npm run build
 
-      # `enablement: true` turns Pages on for the repository the first time
-      # this runs, so there is no manual step in repository settings.
+      # Pages is already switched on for this repository, with its source set
+      # to GitHub Actions, so this step only reads the existing configuration.
+      #
+      # `enablement: true` is kept for forks. Do not rely on it: creating a
+      # Pages site needs admin rights on the repository, which the workflow's
+      # GITHUB_TOKEN does not have, and the first run here failed on exactly
+      # that. If this step ever reports that it cannot find a Pages site, turn
+      # it on once under Settings, Pages, Source: GitHub Actions.
       - uses: actions/configure-pages@v5
         with:
           enablement: true
