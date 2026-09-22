@@ -233,6 +233,15 @@ npm run dev -- --port 3000
 **Blank page below the hero.** Expected on first paint. Sections reveal on
 scroll through `Reveal` and `useInViewOnce`. Scroll down and they appear.
 
+**Wholly blank page after `npm run build`, with no error anywhere.** The build
+succeeded and the assets are missing at the URL the HTML asks for. Open the
+browser console: `Failed to load module script ... MIME type of "text/html"`
+means the request fell through to the SPA fallback. Check that the `src` in
+`dist/index.html` is relative (`./assets/...`) and that `base` in
+`vite.config.ts` is `'./'` and not conditional on `command` — see
+[The base path](#the-base-path). Serving `dist/index.html` from the filesystem
+rather than over http produces the same blank page; use `npm run preview`.
+
 **Stale build in preview.** Run `npm run build` again. `npm run preview` never
 rebuilds on its own.
 
@@ -267,23 +276,34 @@ pick **Deploy to GitHub Pages**, and use **Run workflow**.
 ### The base path
 
 Pages serves a project site from `/<repo>/` rather than the domain root, so
-`vite.config.ts` sets `base` to `/pavankumar-pragada/` for builds. Two things
-follow from that:
+asset URLs cannot assume the root. `vite.config.ts` sets `base` to `'./'`, which
+makes every generated URL relative to the page that loads it. The same `dist/`
+then works from the Pages subpath, from a domain root, and from
+`npm run preview`, with no rebuild in between. `npm run dev` and
+`npm run preview` both stay on the plain roots listed above.
 
-- `npm run dev` is unaffected and stays on `http://localhost:5173/`, because the
-  base is applied to `build` only.
-- `npm run preview` serves the real built output, so it lives at
-  **http://localhost:4173/pavankumar-pragada/**. The bare root will 404.
+Do not make `base` conditional on Vite's `command`. `vite preview` reports
+`command === 'serve'`, not `'build'`, so a build-only base leaves preview
+serving `dist/` at `/` while the HTML inside it asks for `/<repo>/assets/...`.
+Those requests miss, fall through to the SPA fallback, and the module script
+arrives as `text/html`, which the browser refuses to execute. The page then
+renders blank with no build error and nothing in the terminal.
 
-Moving the site to a custom domain or a `<user>.github.io` repository means
-setting `base` back to `'/'`.
+`dist/index.html` has to be served over http either way. Opening it straight
+off disk stays blank whatever the base is, because browsers block ES module
+scripts on `file://` origins. Use `npm run preview`.
+
+Moving to a custom domain or a `<user>.github.io` repository needs no change.
+Adding a client-side router does: relative URLs break on nested paths, so
+`base` would have to become the absolute `/pavankumar-pragada/` prefix, applied
+unconditionally.
 
 ### Hosting it somewhere else
 
 The build is fully static, so `dist/` also drops onto Netlify, Vercel,
 Cloudflare Pages, S3 or nginx. Build command `npm run build`, output directory
-`dist`, and set `base` to `'/'` first unless the host also serves from a
-subpath.
+`dist`. The relative base means no config change is needed, whether the host
+serves from a domain root or from a subpath.
 - **Node version:** 20.19+ (24.x used here)
 
 Since the app is a single page with in-page anchor navigation, no SPA rewrite
